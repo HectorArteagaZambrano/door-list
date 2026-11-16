@@ -3,8 +3,9 @@ import { publicDb as db } from "../lib/supabase/public";
 import { getPublicEvents } from "../lib/supabase/public-events";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import type { PublicEvent, RegistrationRequest, RegistrationResult } from "../lib/types";
+import type { PublicEvent, RegistrationRequest } from "../lib/types";
 import { formatDate } from "../lib/dates";
+import { readRegistrationResponse, RegistrationApiError } from "../lib/registration-contract";
 
 const button = "rounded-xl bg-emerald-800 px-6 py-3 font-semibold text-white disabled:opacity-50";
 const input = "mt-2 w-full rounded-lg border border-stone-300 p-3";
@@ -37,16 +38,14 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
    method: "POST", headers: { "Content-Type": "application/json" },
    body: JSON.stringify({ eventId, ticketTypeId, name, email, requestId: request.current.id } satisfies RegistrationRequest),
   });
-  const data = await response.json();
-  if (!response.ok && data.code !== "invalid") throw new Error();
-  return data as RegistrationResult;
+  return readRegistrationResponse(response);
  }
  async function retryEmail() {
   if (sending.current) return;
   sending.current = true; setBusy(true);
   try {
    const data = await confirmRegistration();
-   setEmailStatus(data.code === "ok" ? data.emailStatus : "failed");
+   setEmailStatus(data.emailStatus);
   } catch { setEmailStatus("failed"); }
   finally { sending.current = false; setBusy(false); }
  }
@@ -63,13 +62,16 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
   sending.current = true; setBusy(true); setError("");
   try {
    const data = await confirmRegistration();
-   if (data.code === "ok") { if (!/^[0-9a-f]{64}$/.test(data.ticketCode ?? "")) throw new Error(); setEmailStatus(data.emailStatus); setSuccess(data.ticketCode); return; }
-   request.current = null;
-   if (data.code === "sold_out") { setError("La entrada seleccionada ya no está disponible. Elige otra opción con cupo."); setTicketTypeId(""); }
-   else if (data.code === "unavailable") setError("Este evento ya no está disponible para registro.");
-   else setError("Revisa tu nombre y correo electrónico.");
-   await refresh();
-  } catch { setError("No pudimos confirmar el registro. Reintenta con los mismos datos; no se duplicará tu registro."); }
+   setEmailStatus(data.emailStatus); setSuccess(data.ticketCode);
+  } catch (error) {
+   if (error instanceof RegistrationApiError && error.code !== "internalError") {
+    request.current = null;
+    if (error.code === "soldOut") { setError("La entrada seleccionada ya no está disponible. Elige otra opción con cupo."); setTicketTypeId(""); }
+    else if (error.code === "unavailable") setError("Este evento ya no está disponible para registro.");
+    else setError("Revisa tu nombre y correo electrónico.");
+    await refresh();
+   } else setError("No pudimos confirmar el registro. Reintenta con los mismos datos; no se duplicará tu registro.");
+  }
   finally { sending.current = false; setBusy(false); }
  }
  const event = events[0];

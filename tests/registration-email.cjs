@@ -81,7 +81,9 @@ test('registration survives email failure; invalid/sold-out requests never send'
   assert.deepEqual(await response.json(), { code: 'ok', ticketCode: ticket.code, emailStatus: 'failed' });
   assert.equal(sends, 1);
   result = { code: 'sold_out' };
-  assert.equal((await (await POST(request(body))).json()).code, 'sold_out');
+  const soldOut = await POST(request(body));
+  assert.equal(soldOut.status, 409);
+  assert.deepEqual(await soldOut.json(), { error: 'soldOut' });
   assert.equal(sends, 1);
   assert.equal((await POST(request({ ...body, email: 'bad' }))).status, 400);
   assert.equal(registrations, 2);

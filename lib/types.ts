@@ -19,4 +19,5 @@ export type RegistrationRequest = Pick<Registration, "name" | "email"> & {
 export type EmailStatus = "sent" | "failed";
 export type RegistrationResponse = { code: "ok"; ticketCode: string; emailStatus: EmailStatus };
 
-export type RegistrationResult = RegistrationResponse | { code: "invalid" | "sold_out" | "unavailable" | "error" };
+export type RegistrationErrorCode = "invalid" | "unavailable" | "soldOut" | "internalError";
+export type ApiError = { error: RegistrationErrorCode };

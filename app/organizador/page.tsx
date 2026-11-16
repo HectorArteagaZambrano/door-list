@@ -43,7 +43,7 @@ export default function OrganizerPage() {
       supabase.from("ticket_types").select("*").order("name"),
     ]);
     if (eventResult.error || ticketTypeResult.error) {
-      setMessage(eventResult.error?.message || ticketTypeResult.error?.message || "No se pudieron cargar los datos.");
+      setMessage("No se pudieron cargar los datos. Inténtalo de nuevo.");
       return;
     }
     setEvents(eventResult.data as Event[]);
@@ -59,7 +59,7 @@ export default function OrganizerPage() {
     const { error } = await supabase.auth.signInWithPassword({
       email: String(data.get("email")).trim(), password: String(data.get("password")),
     });
-    if (error) setMessage(error.message);
+    if (error) setMessage("No se pudo iniciar sesión. Revisa tus credenciales e inténtalo de nuevo.");
     setBusy(false);
   }
 
@@ -82,7 +82,7 @@ export default function OrganizerPage() {
     const result = editing
       ? await supabase.from("events").update(payload).eq("id", editing.id).eq("owner_id", session.user.id).select("id").single()
       : await supabase.from("events").insert({ ...payload, owner_id: session.user.id }).select("id").single();
-    if (result.error) setMessage(result.error.message);
+    if (result.error) setMessage("No se pudo guardar el evento. Revisa su aforo y sus tipos de entrada antes de publicar.");
     else { setEditing(null); form.reset(); setMessage("Evento guardado."); await refresh(); }
     setBusy(false);
   }
@@ -104,7 +104,7 @@ export default function OrganizerPage() {
     const result = ticketTypeEditing
       ? await supabase.from("ticket_types").update({ name, capacity }).eq("id", ticketTypeEditing.id).eq("event_id", selected).select("id").single()
       : await supabase.from("ticket_types").insert({ name, capacity, event_id: selected }).select("id").single();
-    if (result.error) setMessage(result.error.message);
+    if (result.error) setMessage("No se pudo guardar el tipo de entrada. Revisa el aforo del evento y los registros existentes.");
     else { setTicketTypeEditing(null); form.reset(); setMessage("Tipo de entrada guardado."); await refresh(); }
     setBusy(false);
   }
@@ -116,7 +116,7 @@ export default function OrganizerPage() {
       ? supabase.from("events").delete().eq("id", id).eq("owner_id", session.user.id)
       : supabase.from("ticket_types").delete().eq("id", id).eq("event_id", selected);
     const { error } = await query.select("id").single();
-    if (error) setMessage(error.message);
+    if (error) setMessage("No se pudo eliminar. Actualiza los datos e inténtalo de nuevo.");
     else {
       if (kind === "event") { setSelected(null); setEditing(null); setTicketTypeEditing(null); }
       else if (ticketTypeEditing?.id === id) setTicketTypeEditing(null);
@@ -132,7 +132,7 @@ export default function OrganizerPage() {
     <main className="mx-auto min-h-svh max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div><Link href="/" className="text-sm font-bold tracking-widest text-emerald-800">DOOR LIST</Link><h1 className="mt-3 text-3xl font-semibold">Panel del organizador</h1></div>
-        {session && <button className={secondary} onClick={async () => { const { error } = await supabase!.auth.signOut(); if (error) setMessage(error.message); }}>Cerrar sesión</button>}
+        {session && <button className={secondary} onClick={async () => { const { error } = await supabase!.auth.signOut(); if (error) setMessage("No se pudo cerrar sesión. Inténtalo de nuevo."); }}>Cerrar sesión</button>}
       </header>
       {message && <p role="status" className="mb-6 rounded-lg bg-stone-100 p-4 text-stone-800">{message}</p>}
       {!supabase ? <p>Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para acceder.</p> : loading ? <p>Cargando sesión…</p> : !session ? (
