@@ -21,3 +21,9 @@ export type RegistrationResponse = { code: "ok"; ticketCode: string; emailStatus
 
 export type RegistrationErrorCode = "invalid" | "unavailable" | "soldOut" | "internalError";
 export type ApiError = { error: RegistrationErrorCode };
+
+export type OrganizerDashboardData = {
+  events: Event[];
+  ticketTypes: (TicketType & { registeredCount: number })[];
+  registrations: Registration[];
+};

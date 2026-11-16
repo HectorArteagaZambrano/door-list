@@ -10,7 +10,35 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:3000. El panel de organizadores está en `/organizador`.
+Abre http://localhost:3000. La gestión de eventos está en `/organizador`.
+El panel de registros y asistentes está en `/dashboard`; el detalle de cada
+evento está en `/dashboard/<id>`. Ambas rutas requieren iniciar sesión.
+
+### Panel del organizador
+
+Aplica `supabase/migrations/20261116000000_organizer_dashboard.sql` después de
+las migraciones anteriores antes de usar el panel. Esta migración permite
+lectura de registros a usuarios autenticados mediante una política RLS que
+comprueba la propiedad del evento. No concede permisos de escritura ni lectura
+anónima de asistentes. La función `organizer_dashboard` se ejecuta con los
+permisos del usuario y filtra por `auth.uid()`.
+
+El panel lista solo los eventos del organizador. Al abrir uno, muestra registros
+por tipo de entrada sobre su aforo y los asistentes con nombre, correo, tipo de
+entrada y fecha de registro en Lima. Usa «Actualizar datos» para volver a consultar.
+Los conteos y asistentes se obtienen en una misma consulta, sin exponer códigos
+de entradas. El formulario de acceso y la actualización requieren un componente
+cliente; las páginas que lo alojan siguen siendo Server Components.
+
+Verifica en un proyecto de prueba con dos cuentas de organizador:
+
+- Sin sesión, el panel muestra el acceso y la RPC rechaza peticiones anónimas.
+- Cada organizador ve únicamente sus eventos, incluidos sus borradores.
+- Abrir el ID de un evento ajeno no devuelve eventos, tipos ni asistentes,
+  incluso si está publicado; la lectura directa de registros tampoco los expone.
+- Un tipo sin registros muestra `0 / aforo`; cada registro incrementa el conteo
+  de su tipo y aparece una sola vez en la lista de asistentes.
+- Cambiar de cuenta o cerrar sesión retira los datos de la cuenta anterior.
 
 ## Supabase
 

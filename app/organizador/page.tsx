@@ -132,7 +132,8 @@ export default function OrganizerPage() {
     <main className="mx-auto min-h-svh max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div><Link href="/" className="text-sm font-bold tracking-widest text-emerald-800">DOOR LIST</Link><h1 className="mt-3 text-3xl font-semibold">Panel del organizador</h1></div>
-        {session && <button className={secondary} onClick={async () => { const { error } = await supabase!.auth.signOut(); if (error) setMessage("No se pudo cerrar sesión. Inténtalo de nuevo."); }}>Cerrar sesión</button>}
+        <div className="flex flex-wrap items-center gap-4"><Link href="/dashboard" className="font-semibold text-emerald-800 underline">Ver registros y asistentes</Link>
+          {session && <button className={secondary} onClick={async () => { const { error } = await supabase!.auth.signOut(); if (error) setMessage("No se pudo cerrar sesión. Inténtalo de nuevo."); }}>Cerrar sesión</button>}</div>
       </header>
       {message && <p role="status" className="mb-6 rounded-lg bg-stone-100 p-4 text-stone-800">{message}</p>}
       {!supabase ? <p>Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para acceder.</p> : loading ? <p>Cargando sesión…</p> : !session ? (
