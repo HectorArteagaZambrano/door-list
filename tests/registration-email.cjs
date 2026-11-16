@@ -70,7 +70,7 @@ test('registration survives email failure; invalid/sold-out requests never send'
     } } },
     '../../ticket-email': { TicketEmailError: Error, sendTicketEmail: async () => { sends++; throw new Error('offline'); } },
   });
-  const body = { eventId: '12345678-1234-1234-1234-123456789012', ticketId: '12345678-1234-1234-1234-123456789012',
+  const body = { eventId: '12345678-1234-1234-1234-123456789012', ticketTypeId: '12345678-1234-1234-1234-123456789012',
     requestId: '12345678-1234-1234-1234-123456789012', name: 'Guest', email: ticket.email };
   const request = value => new Request('http://localhost/api/registrations', { method: 'POST', body: JSON.stringify(value) });
   const response = await POST(request(body));

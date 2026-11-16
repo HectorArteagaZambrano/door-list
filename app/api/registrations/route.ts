@@ -8,14 +8,14 @@ export async function POST(request: Request) {
   try { body = await request.json(); }
   catch { return Response.json({ code: "invalid" }, { status: 400 }); }
   if (!body || typeof body !== "object" ||
-    ![body.eventId, body.ticketId, body.requestId].every(value => typeof value === "string" && uuid.test(value)) ||
+    ![body.eventId, body.ticketTypeId, body.requestId].every(value => typeof value === "string" && uuid.test(value)) ||
     typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 200 ||
     typeof body.email !== "string" || body.email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
     return Response.json({ code: "invalid" }, { status: 400 });
   }
   if (!publicDb) return Response.json({ code: "error" }, { status: 503 });
   const { data, error } = await publicDb.rpc("register_attendee", {
-    p_event_id: body.eventId, p_ticket_id: body.ticketId, p_name: body.name.trim(),
+    p_event_id: body.eventId, p_ticket_id: body.ticketTypeId, p_name: body.name.trim(),
     p_email: body.email.trim(), p_request_id: body.requestId,
   });
   if (error) return Response.json({ code: "error" }, { status: 503 });

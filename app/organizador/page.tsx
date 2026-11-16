@@ -15,7 +15,7 @@ type Event = {
   capacity: number | null;
 };
 
-type Ticket = {
+type TicketType = {
   id: string;
   event_id: string;
   name: string;
@@ -41,9 +41,9 @@ export default function OrganizerPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [events, setEvents] = useState<Event[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [editing, setEditing] = useState<Event | null>(null);
-  const [ticketEditing, setTicketEditing] = useState<Ticket | null>(null);
+  const [ticketTypeEditing, setTicketTypeEditing] = useState<TicketType | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,23 +54,23 @@ export default function OrganizerPage() {
     });
     const { data } = supabase.auth.onAuthStateChange((_event, current) => {
       setSession(current);
-      if (!current) { setEvents([]); setTickets([]); setSelected(null); }
+      if (!current) { setEvents([]); setTicketTypes([]); setSelected(null); }
     });
     return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
 
   const refresh = useCallback(async () => {
     if (!supabase || !session) return;
-    const [eventResult, ticketResult] = await Promise.all([
+    const [eventResult, ticketTypeResult] = await Promise.all([
       supabase.from("events").select("*").eq("owner_id", session.user.id).order("starts_at"),
       supabase.from("ticket_types").select("*").order("name"),
     ]);
-    if (eventResult.error || ticketResult.error) {
-      setMessage(eventResult.error?.message || ticketResult.error?.message || "No se pudieron cargar los datos.");
+    if (eventResult.error || ticketTypeResult.error) {
+      setMessage(eventResult.error?.message || ticketTypeResult.error?.message || "No se pudieron cargar los datos.");
       return;
     }
     setEvents(eventResult.data as Event[]);
-    setTickets(ticketResult.data as Ticket[]);
+    setTicketTypes(ticketTypeResult.data as TicketType[]);
   }, [session]);
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
@@ -110,7 +110,7 @@ export default function OrganizerPage() {
     setBusy(false);
   }
 
-  async function saveTicket(e: FormEvent<HTMLFormElement>) {
+  async function saveTicketType(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!supabase || !selected) return;
     const form = e.currentTarget;
@@ -119,20 +119,20 @@ export default function OrganizerPage() {
     const capacity = Number(data.get("capacity"));
     if (!name || !Number.isSafeInteger(capacity) || capacity < 1) { setMessage("Indica un nombre y un aforo entero positivo."); return; }
     const event = events.find((item) => item.id === selected);
-    const allocated = tickets.filter((item) => item.event_id === selected && item.id !== ticketEditing?.id).reduce((sum, item) => sum + item.capacity, 0);
+    const allocated = ticketTypes.filter((item) => item.event_id === selected && item.id !== ticketTypeEditing?.id).reduce((sum, item) => sum + item.capacity, 0);
     if (event?.capacity != null && allocated + capacity > event.capacity) {
       setMessage("La suma de los aforos supera el aforo máximo del evento."); return;
     }
     setBusy(true); setMessage("");
-    const result = ticketEditing
-      ? await supabase.from("ticket_types").update({ name, capacity }).eq("id", ticketEditing.id).eq("event_id", selected).select("id").single()
+    const result = ticketTypeEditing
+      ? await supabase.from("ticket_types").update({ name, capacity }).eq("id", ticketTypeEditing.id).eq("event_id", selected).select("id").single()
       : await supabase.from("ticket_types").insert({ name, capacity, event_id: selected }).select("id").single();
     if (result.error) setMessage(result.error.message);
-    else { setTicketEditing(null); form.reset(); setMessage("Tipo de entrada guardado."); await refresh(); }
+    else { setTicketTypeEditing(null); form.reset(); setMessage("Tipo de entrada guardado."); await refresh(); }
     setBusy(false);
   }
 
-  async function remove(kind: "event" | "ticket", id: string) {
+  async function remove(kind: "event" | "ticketType", id: string) {
     if (!supabase || !session || !window.confirm(kind === "event" ? "¿Eliminar este evento y todos sus tipos de entrada?" : "¿Eliminar este tipo de entrada?")) return;
     setBusy(true); setMessage("");
     const query = kind === "event"
@@ -141,16 +141,16 @@ export default function OrganizerPage() {
     const { error } = await query.select("id").single();
     if (error) setMessage(error.message);
     else {
-      if (kind === "event") { setSelected(null); setEditing(null); setTicketEditing(null); }
-      else if (ticketEditing?.id === id) setTicketEditing(null);
+      if (kind === "event") { setSelected(null); setEditing(null); setTicketTypeEditing(null); }
+      else if (ticketTypeEditing?.id === id) setTicketTypeEditing(null);
       setMessage("Eliminado correctamente."); await refresh();
     }
     setBusy(false);
   }
 
   const current = events.find((event) => event.id === selected);
-  const currentTickets = tickets.filter((ticket) => ticket.event_id === selected);
-  const allocated = currentTickets.reduce((sum, ticket) => sum + ticket.capacity, 0);
+  const currentTicketTypes = ticketTypes.filter((ticketType) => ticketType.event_id === selected);
+  const allocated = currentTicketTypes.reduce((sum, ticketType) => sum + ticketType.capacity, 0);
   return (
     <main className="mx-auto min-h-svh max-w-5xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -186,20 +186,20 @@ export default function OrganizerPage() {
             {events.length === 0 ? <p className="text-stone-600">Aún no tienes eventos.</p> : <ul className="grid gap-4">{events.map((event) => (
               <li key={event.id} className="rounded-xl border border-stone-200 p-4">
                 <h3 className="font-semibold">{event.title}</h3>{event.status === "publicado" && <Link className="text-sm text-emerald-800 underline" href={`/eventos/${event.id}`}>Página pública de registro</Link>}<p className="mt-1 text-sm text-stone-600">{new Date(event.starts_at).toLocaleString("es-PE")} · {event.venue} · {event.status}</p>
-                <div className="mt-3 flex flex-wrap gap-2"><button className={secondary} onClick={() => { setSelected(event.id); setTicketEditing(null); setMessage(""); }}>Tipos de entrada</button><button className={secondary} onClick={() => setEditing(event)}>Editar</button><button className={secondary} disabled={busy} onClick={() => void remove("event", event.id)}>Eliminar</button></div>
+                <div className="mt-3 flex flex-wrap gap-2"><button className={secondary} onClick={() => { setSelected(event.id); setTicketTypeEditing(null); setMessage(""); }}>Tipos de entrada</button><button className={secondary} onClick={() => setEditing(event)}>Editar</button><button className={secondary} disabled={busy} onClick={() => void remove("event", event.id)}>Eliminar</button></div>
               </li>
             ))}</ul>}
           </section>
           {current && <section className="rounded-2xl border border-stone-200 bg-white p-6">
             <h2 className="text-xl font-semibold">Tipos de entrada · {current.title}</h2>
             <p className="mt-2 text-sm text-stone-600">Aforo asignado: {allocated}{current.capacity == null ? " · Sin límite general" : ` / ${current.capacity}`}</p>
-            <ul className="my-5 grid gap-3">{currentTickets.map((ticket) => <li key={ticket.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3"><span>{ticket.name} · {ticket.capacity} plazas</span><span className="flex gap-2"><button className={secondary} onClick={() => setTicketEditing(ticket)}>Editar</button><button className={secondary} disabled={busy} onClick={() => void remove("ticket", ticket.id)}>Eliminar</button></span></li>)}</ul>
-            {currentTickets.length === 0 && <p className="mb-5 text-stone-600">Aún no hay tipos de entrada.</p>}
-            <h3 className="mb-3 font-semibold">{ticketEditing ? "Editar tipo de entrada" : "Añadir tipo de entrada"}</h3>
-            <form key={ticketEditing?.id ?? current.id} onSubmit={saveTicket} className="flex flex-wrap items-end gap-3">
-              <label className="min-w-48 flex-1">Nombre<input className={input} name="name" defaultValue={ticketEditing?.name} required /></label>
-              <label>Aforo<input className={input} name="capacity" type="number" min="1" step="1" defaultValue={ticketEditing?.capacity} required /></label>
-              <button className={button} disabled={busy}>Guardar</button>{ticketEditing && <button type="button" className={secondary} onClick={() => setTicketEditing(null)}>Cancelar</button>}
+            <ul className="my-5 grid gap-3">{currentTicketTypes.map((ticketType) => <li key={ticketType.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3"><span>{ticketType.name} · {ticketType.capacity} plazas</span><span className="flex gap-2"><button className={secondary} onClick={() => setTicketTypeEditing(ticketType)}>Editar</button><button className={secondary} disabled={busy} onClick={() => void remove("ticketType", ticketType.id)}>Eliminar</button></span></li>)}</ul>
+            {currentTicketTypes.length === 0 && <p className="mb-5 text-stone-600">Aún no hay tipos de entrada.</p>}
+            <h3 className="mb-3 font-semibold">{ticketTypeEditing ? "Editar tipo de entrada" : "Añadir tipo de entrada"}</h3>
+            <form key={ticketTypeEditing?.id ?? current.id} onSubmit={saveTicketType} className="flex flex-wrap items-end gap-3">
+              <label className="min-w-48 flex-1">Nombre<input className={input} name="name" defaultValue={ticketTypeEditing?.name} required /></label>
+              <label>Aforo<input className={input} name="capacity" type="number" min="1" step="1" defaultValue={ticketTypeEditing?.capacity} required /></label>
+              <button className={button} disabled={busy}>Guardar</button>{ticketTypeEditing && <button type="button" className={secondary} onClick={() => setTicketTypeEditing(null)}>Cancelar</button>}
             </form>
           </section>}
         </div>
