@@ -1,5 +1,8 @@
-import { publicDb } from "../../public-db";
-import { sendTicketEmail, TicketEmailError } from "../../ticket-email";
+import { publicDb } from "../../../lib/supabase/public";
+import { sendTicketEmail, TicketEmailError } from "../../../lib/ticket-email";
+
+import { registrationResponse } from "../../../lib/registration-contract";
+import type { EmailStatus } from "../../../lib/types";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
   if (error) return Response.json({ code: "error" }, { status: 503 });
   if (data?.code !== "ok") return Response.json({ code: data?.code ?? "error" });
   if (!/^[0-9a-f]{64}$/.test(data.ticket_code ?? "")) return Response.json({ code: "error" }, { status: 503 });
-  let emailStatus = "failed";
+  let emailStatus: EmailStatus = "failed";
   try {
     // Resolve the recipient and event from the issued ticket, never from client email content.
     const { data: ticket, error: ticketError } = await publicDb.rpc("public_ticket", { p_code: data.ticket_code });
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
       ? { code: error.code, status: error.status }
       : { code: "ticket_email_unexpected_error" });
   }
-  return Response.json({ code: "ok", ticket_code: data.ticket_code, email_status: emailStatus }, {
+  return Response.json(registrationResponse(data, emailStatus), {
     headers: { "Cache-Control": "no-store" },
   });
 }

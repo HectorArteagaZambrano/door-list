@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const path = require('node:path');
 const ts = require('typescript');
 
 function load(file, dependencies, globals = {}) {
@@ -10,7 +11,9 @@ function load(file, dependencies, globals = {}) {
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText;
-  vm.runInNewContext(code, { exports, require: name => dependencies[name] ?? require(name),
+  vm.runInNewContext(code, { exports, require: name => dependencies[name] ?? (name.startsWith('.')
+      ? load(path.resolve(path.dirname(file), name + '.ts'), dependencies, globals)
+      : require(name)),
     Response, AbortSignal, console: { error() {} }, ...globals });
   return exports;
 }
@@ -19,7 +22,7 @@ const ticket = { code: 'a'.repeat(64), name: '<script>alert(1)</script>', email:
 
 test('email embeds a real PNG, escapes event data, uses Lima and Resend idempotency', async () => {
   let sent;
-  const { sendTicketEmail } = load('app/ticket-email.ts', {}, {
+  const { sendTicketEmail } = load('lib/ticket-email.ts', {}, {
     process: { env: { RESEND_API_KEY: 'test-key', RESEND_FROM_EMAIL: 'test@example.com' } },
     fetch: async (url, options) => { sent = { url, ...options, payload: JSON.parse(options.body) }; return new Response('{}'); },
   });
@@ -39,7 +42,7 @@ test('email embeds a real PNG, escapes event data, uses Lima and Resend idempote
 });
 
 test('provider failure rejects email sending', async () => {
-  const { sendTicketEmail } = load('app/ticket-email.ts', {}, {
+  const { sendTicketEmail } = load('lib/ticket-email.ts', {}, {
     process: { env: { RESEND_API_KEY: 'test', RESEND_FROM_EMAIL: 'test@example.com' } },
     fetch: async () => new Response('{}', { status: 429 }),
   });
@@ -47,7 +50,7 @@ test('provider failure rejects email sending', async () => {
 });
 
 test('test sender restriction is diagnosed without exposing provider personal data', async () => {
-  const { sendTicketEmail } = load('app/ticket-email.ts', {}, {
+  const { sendTicketEmail } = load('lib/ticket-email.ts', {}, {
     process: { env: { RESEND_API_KEY: 'test', RESEND_FROM_EMAIL: 'onboarding@resend.dev' } },
     fetch: async () => Response.json({ message: 'You can only send testing emails to your own email address (private@example.com).' }, { status: 403 }),
   });
@@ -64,18 +67,18 @@ test('registration survives email failure; invalid/sold-out requests never send'
   let sends = 0;
   let registrations = 0;
   const { POST } = load('app/api/registrations/route.ts', {
-    '../../public-db': { publicDb: { rpc: async name => {
+    '../../../lib/supabase/public': { publicDb: { rpc: async name => {
       if (name === 'register_attendee') { registrations++; return { data: result }; }
       return { data: ticket };
     } } },
-    '../../ticket-email': { TicketEmailError: Error, sendTicketEmail: async () => { sends++; throw new Error('offline'); } },
+    '../../../lib/ticket-email': { TicketEmailError: Error, sendTicketEmail: async () => { sends++; throw new Error('offline'); } },
   });
   const body = { eventId: '12345678-1234-1234-1234-123456789012', ticketTypeId: '12345678-1234-1234-1234-123456789012',
     requestId: '12345678-1234-1234-1234-123456789012', name: 'Guest', email: ticket.email };
   const request = value => new Request('http://localhost/api/registrations', { method: 'POST', body: JSON.stringify(value) });
   const response = await POST(request(body));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { code: 'ok', ticket_code: ticket.code, email_status: 'failed' });
+  assert.deepEqual(await response.json(), { code: 'ok', ticketCode: ticket.code, emailStatus: 'failed' });
   assert.equal(sends, 1);
   result = { code: 'sold_out' };
   assert.equal((await (await POST(request(body))).json()).code, 'sold_out');

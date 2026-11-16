@@ -1,9 +1,6 @@
-import { publicDb } from "../../app/public-db";
+import { publicDb } from "./public";
 
-export type PublicEvent = {
-  id: string; title: string; description: string; starts_at: string; venue: string;
-  ticketTypes: { id: string; name: string; remaining: number }[];
-};
+import type { PublicEvent } from "../types";
 
 type PublicEventRow = Omit<PublicEvent, "ticketTypes"> & { tickets: PublicEvent["ticketTypes"] };
 

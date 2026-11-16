@@ -1,39 +1,16 @@
-﻿"use client";
+"use client";
 
-import { createClient, type Session } from "@supabase/supabase-js";
+import { type Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-type Event = {
-  id: string;
-  owner_id: string;
-  title: string;
-  description: string;
-  starts_at: string;
-  venue: string;
-  status: "borrador" | "publicado";
-  capacity: number | null;
-};
+import type { Event, TicketType } from "../../lib/types";
+import { formatDate, localDate } from "../../lib/dates";
+import { organizerDb as supabase } from "../../lib/supabase/organizer";
 
-type TicketType = {
-  id: string;
-  event_id: string;
-  name: string;
-  capacity: number
-};
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const supabase = url && key ? createClient(url, key) : null;
 const input = "mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2";
 const button = "rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900 disabled:opacity-50";
 const secondary = "rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium hover:bg-stone-100 disabled:opacity-50";
-
-function localDate(value: string) {
-  const d = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function OrganizerPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -185,7 +162,7 @@ export default function OrganizerPage() {
             <h2 className="mb-4 text-xl font-semibold">Mis eventos</h2>
             {events.length === 0 ? <p className="text-stone-600">Aún no tienes eventos.</p> : <ul className="grid gap-4">{events.map((event) => (
               <li key={event.id} className="rounded-xl border border-stone-200 p-4">
-                <h3 className="font-semibold">{event.title}</h3>{event.status === "publicado" && <Link className="text-sm text-emerald-800 underline" href={`/eventos/${event.id}`}>Página pública de registro</Link>}<p className="mt-1 text-sm text-stone-600">{new Date(event.starts_at).toLocaleString("es-PE")} · {event.venue} · {event.status}</p>
+                <h3 className="font-semibold">{event.title}</h3>{event.status === "publicado" && <Link className="text-sm text-emerald-800 underline" href={`/eventos/${event.id}`}>Página pública de registro</Link>}<p className="mt-1 text-sm text-stone-600">{formatDate(event.starts_at, "organizer")} · {event.venue} · {event.status}</p>
                 <div className="mt-3 flex flex-wrap gap-2"><button className={secondary} onClick={() => { setSelected(event.id); setTicketTypeEditing(null); setMessage(""); }}>Tipos de entrada</button><button className={secondary} onClick={() => setEditing(event)}>Editar</button><button className={secondary} disabled={busy} onClick={() => void remove("event", event.id)}>Eliminar</button></div>
               </li>
             ))}</ul>}

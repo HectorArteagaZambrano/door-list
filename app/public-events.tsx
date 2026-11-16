@@ -1,11 +1,14 @@
-﻿"use client";
-import { publicDb as db } from "./public-db";
-import { getPublicEvents, type PublicEvent } from "../lib/supabase/public-events";
+"use client";
+import { publicDb as db } from "../lib/supabase/public";
+import { getPublicEvents } from "../lib/supabase/public-events";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import type { PublicEvent, RegistrationRequest, RegistrationResult } from "../lib/types";
+import { formatDate } from "../lib/dates";
+
 const button = "rounded-xl bg-emerald-800 px-6 py-3 font-semibold text-white disabled:opacity-50";
 const input = "mt-2 w-full rounded-lg border border-stone-300 p-3";
-const date = (value: string) => new Date(value).toLocaleString("es-PE", { timeZone: "America/Lima" });
+
 export default function PublicEvents({ eventId }: { eventId?: string }) {
  const [events, setEvents] = useState<PublicEvent[]>([]);
  const [loading, setLoading] = useState(true);
@@ -32,18 +35,18 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
   const [eventId, ticketTypeId, name, email] = JSON.parse(request.current.payload);
   const response = await fetch("/api/registrations", {
    method: "POST", headers: { "Content-Type": "application/json" },
-   body: JSON.stringify({ eventId, ticketTypeId, name, email, requestId: request.current.id }),
+   body: JSON.stringify({ eventId, ticketTypeId, name, email, requestId: request.current.id } satisfies RegistrationRequest),
   });
   const data = await response.json();
   if (!response.ok && data.code !== "invalid") throw new Error();
-  return data;
+  return data as RegistrationResult;
  }
  async function retryEmail() {
   if (sending.current) return;
   sending.current = true; setBusy(true);
   try {
    const data = await confirmRegistration();
-   setEmailStatus(data.code === "ok" ? data.email_status : "failed");
+   setEmailStatus(data.code === "ok" ? data.emailStatus : "failed");
   } catch { setEmailStatus("failed"); }
   finally { sending.current = false; setBusy(false); }
  }
@@ -60,7 +63,7 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
   sending.current = true; setBusy(true); setError("");
   try {
    const data = await confirmRegistration();
-   if (data.code === "ok") { if (!/^[0-9a-f]{64}$/.test(data.ticket_code ?? "")) throw new Error(); setEmailStatus(data.email_status); setSuccess(data.ticket_code); return; }
+   if (data.code === "ok") { if (!/^[0-9a-f]{64}$/.test(data.ticketCode ?? "")) throw new Error(); setEmailStatus(data.emailStatus); setSuccess(data.ticketCode); return; }
    request.current = null;
    if (data.code === "sold_out") { setError("La entrada seleccionada ya no está disponible. Elige otra opción con cupo."); setTicketTypeId(""); }
    else if (data.code === "unavailable") setError("Este evento ya no está disponible para registro.");
@@ -79,7 +82,7 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
    {loadError && <div role="alert" className="mt-6"><p>{loadError}</p><button className={`${button} mt-4`} onClick={() => { setLoading(true); void refresh(); }}>Reintentar</button></div>}
    {!loading && (!loadError || events.length > 0) && (eventId ? event ? <article className="mt-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-10">
     <h1 className="text-3xl font-semibold">{event.title}</h1><p className="mt-4 whitespace-pre-wrap text-stone-600">{event.description}</p>
-    <p className="mt-5"><time dateTime={event.starts_at}>{date(event.starts_at)}</time> · Hora de Lima</p><p>{event.venue}</p>
+    <p className="mt-5"><time dateTime={event.starts_at}>{formatDate(event.starts_at)}</time> · Hora de Lima</p><p>{event.venue}</p>
     <h2 className="mt-8 text-xl font-semibold">Regístrate</h2><p className="mt-2 text-sm text-stone-600">No necesitas una cuenta. Nombre y correo son obligatorios.</p>
     <form onSubmit={submit} className="mt-6 grid gap-5" aria-busy={busy}>
      <fieldset disabled={busy} className="grid gap-5">
@@ -91,7 +94,7 @@ export default function PublicEvents({ eventId }: { eventId?: string }) {
      <p className="text-sm text-stone-600">Al confirmar, recibirás tu entrada con el QR en el correo indicado.</p>
      <button className={button} disabled={busy || !event.ticketTypes.some(t => t.remaining > 0)}>{busy ? "Confirmando y enviando entrada…" : "Confirmar registro"}</button>
     </form>
-   </article> : <p className="mt-8">Este evento no está disponible para registro. Solo puedes registrarte en eventos publicados desde hoy en adelante.</p> : <section className="mt-8"><h1 className="text-3xl font-semibold">Próximos eventos</h1><p className="mt-3 text-stone-600">Elige un evento y reserva tu lugar sin iniciar sesión.</p>{events.length === 0 && <p className="mt-6">No hay eventos publicados disponibles.</p>}<ul className="mt-6 grid gap-4">{events.map(item => <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-6"><h2 className="text-xl font-semibold">{item.title}</h2><p className="my-3">{date(item.starts_at)} · {item.venue}</p><Link className="font-semibold text-emerald-800 underline" href={`/eventos/${item.id}`}>Ver evento y registrarme</Link></li>)}</ul></section>)}
+   </article> : <p className="mt-8">Este evento no está disponible para registro. Solo puedes registrarte en eventos publicados desde hoy en adelante.</p> : <section className="mt-8"><h1 className="text-3xl font-semibold">Próximos eventos</h1><p className="mt-3 text-stone-600">Elige un evento y reserva tu lugar sin iniciar sesión.</p>{events.length === 0 && <p className="mt-6">No hay eventos publicados disponibles.</p>}<ul className="mt-6 grid gap-4">{events.map(item => <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-6"><h2 className="text-xl font-semibold">{item.title}</h2><p className="my-3">{formatDate(item.starts_at)} · {item.venue}</p><Link className="font-semibold text-emerald-800 underline" href={`/eventos/${item.id}`}>Ver evento y registrarme</Link></li>)}</ul></section>)}
    {error && <p role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
   </>}
   <Link href="/organizador" className="mt-10 inline-block text-sm text-emerald-800 underline">Acceso para organizadores</Link>

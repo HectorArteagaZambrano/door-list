@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { publicDb } from "../../public-db";
+import { publicDb } from "../../../lib/supabase/public";
 
-type TicketData = {
-  code: string; status: "valid" | "used" | "revoked"; name: string; email: string;
-  ticket_type: string; event_title: string; starts_at: string; venue: string;
-};
+import type { Ticket as TicketData } from "../../../lib/types";
+import { formatDate } from "../../../lib/dates";
 const labels = { valid: "Válida", used: "Utilizada", revoked: "Revocada" };
 
 function TicketQR({ code }: { code: string }) {
@@ -51,7 +49,7 @@ export default function Ticket({ code }: { code: string }) {
         <div><dt className="text-sm text-stone-500">Asistente</dt><dd>{ticket.name}</dd></div>
         <div><dt className="text-sm text-stone-500">Correo</dt><dd className="break-all">{ticket.email}</dd></div>
         <div><dt className="text-sm text-stone-500">Tipo de entrada</dt><dd>{ticket.ticket_type}</dd></div>
-        <div><dt className="text-sm text-stone-500">Fecha · Hora de Lima</dt><dd><time dateTime={ticket.starts_at}>{new Date(ticket.starts_at).toLocaleString("es-PE", { timeZone: "America/Lima" })}</time></dd></div>
+        <div><dt className="text-sm text-stone-500">Fecha · Hora de Lima</dt><dd><time dateTime={ticket.starts_at}>{formatDate(ticket.starts_at)}</time></dd></div>
         <div><dt className="text-sm text-stone-500">Lugar</dt><dd>{ticket.venue}</dd></div>
       </dl>
       <div className="mt-6"><TicketQR code={ticket.code} /></div>

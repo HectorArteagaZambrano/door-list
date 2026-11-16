@@ -1,9 +1,7 @@
 import QRCode from "qrcode";
 
-type EmailTicket = {
-  code: string; name: string; email: string; event_title: string;
-  starts_at: string; venue: string; ticket_type: string;
-};
+import type { EmailTicket } from "./types";
+import { formatDate } from "./dates";
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 })[char]!);
@@ -18,9 +16,7 @@ export async function sendTicketEmail(ticket: EmailTicket) {
   const key = process.env.RESEND_API_KEY?.trim();
   const from = process.env.RESEND_FROM_EMAIL?.trim();
   if (!key || !from) throw new TicketEmailError("resend_not_configured");
-  const date = new Date(ticket.starts_at).toLocaleString("es-PE", {
-    timeZone: "America/Lima", dateStyle: "full", timeStyle: "short",
-  });
+  const date = formatDate(ticket.starts_at, "email");
   const qr = await QRCode.toBuffer(ticket.code, { type: "png", width: 300, margin: 4, errorCorrectionLevel: "M" });
   const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f5f5f4;font-family:Arial,sans-serif;color:#1c1917">
     <main style="max-width:560px;margin:24px auto;padding:32px;background:#fff;border-radius:16px">

@@ -2,36 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { publicDb } from "./public-db";
+import { publicDb } from "../lib/supabase/public";
 
-type PublicEvent = {
-  id: string;
-  title: string;
-  description: string;
-  starts_at: string;
-  venue: string;
-};
-
-const dateFormatter = new Intl.DateTimeFormat("es-PE", {
-  dateStyle: "long",
-  timeStyle: "short",
-  timeZone: "America/Lima",
-});
-
-function startOfTodayInLima() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Lima",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find(item => item.type === type)!.value;
-  return `${part("year")}-${part("month")}-${part("day")}T00:00:00-05:00`;
-}
+import type { PublicEventSummary } from "../lib/types";
+import { formatDate, startOfTodayInLima } from "../lib/dates";
 
 export default function EventsLanding() {
-  const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [events, setEvents] = useState<PublicEventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -78,7 +55,7 @@ export default function EventsLanding() {
               <li key={event.id} className="rounded-2xl border border-stone-200 bg-white p-6">
                 <h2 className="text-xl font-semibold">{event.title}</h2>
                 <p className="mt-3 whitespace-pre-wrap text-stone-600">{event.description}</p>
-                <p className="mt-4"><time dateTime={event.starts_at}>{dateFormatter.format(new Date(event.starts_at))}</time> · Hora de Lima</p>
+                <p className="mt-4"><time dateTime={event.starts_at}>{formatDate(event.starts_at, "landing")}</time> · Hora de Lima</p>
                 <p className="mb-4">{event.venue}</p>
                 <Link className="font-semibold text-emerald-800 underline" href={`/eventos/${event.id}`}>Ver evento y registrarme</Link>
               </li>
