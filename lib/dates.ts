@@ -1,6 +1,14 @@
 const locale = "es-PE";
 const timeZone = "America/Lima";
 
+const calendarDay = new Intl.DateTimeFormat(locale, {
+  day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+});
+
+export function formatCalendarDay(date: string) {
+  return calendarDay.format(new Date(date + "T00:00:00Z"));
+}
+
 type DateFormat = "default" | "landing" | "email" | "organizer";
 
 // Preserve the existing presentation and timezone of each caller.

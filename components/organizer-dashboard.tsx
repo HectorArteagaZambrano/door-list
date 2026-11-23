@@ -8,6 +8,7 @@ import { organizerDb } from "../lib/supabase/organizer";
 import { getOrganizerDashboard } from "../lib/supabase/dashboard";
 import type { OrganizerDashboardData } from "../lib/types";
 import { formatDate } from "../lib/dates";
+import { DailyRegistrationChart } from "../app/dashboard/[id]/daily-registration-chart";
 
 const button = "rounded-xl bg-emerald-800 px-5 py-3 font-semibold text-white disabled:opacity-50";
 const link = "font-semibold text-emerald-800 underline underline-offset-4";
@@ -83,11 +84,11 @@ export default function OrganizerDashboard({ eventId }: { eventId?: string }) {
           <button className={button} disabled={busy}>{busy ? "Accediendo…" : "Entrar"}</button>
         </form>
       </section>
-      : <DashboardContent key={`${session.user.id}/${eventId ?? ""}`} eventId={eventId} />}
+      : <DashboardContent key={`${session.user.id}/${eventId ?? ""}`} eventId={eventId} accessToken={session.access_token} />}
   </main>;
 }
 
-function DashboardContent({ eventId }: { eventId?: string }) {
+function DashboardContent({ eventId, accessToken }: { eventId?: string; accessToken: string }) {
   const [data, setData] = useState<OrganizerDashboardData | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -136,6 +137,7 @@ function DashboardContent({ eventId }: { eventId?: string }) {
           <p className="mt-2">{event.venue}</p>
           <p className="mt-5 text-lg font-semibold">{data.registrations.length} registros{event.capacity === null ? " · Sin aforo general" : ` / ${event.capacity} de aforo general`}</p>
         </section>
+        <DailyRegistrationChart eventId={eventId} accessToken={accessToken} refresh={refresh} />
         <section aria-labelledby="ticket-types-title">
           <h3 id="ticket-types-title" className="text-2xl font-semibold">Tipos de entrada</h3>
           {data.ticketTypes.length === 0 ? <p className="mt-4">Este evento todavía no tiene tipos de entrada.</p>

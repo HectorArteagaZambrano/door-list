@@ -9,3 +9,10 @@ body {
   color: #1c1917;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.daily-plot, .daily-loading { min-height: calc(var(--space-8) * 3); }
+.daily-plot { display: flex; gap: var(--space-3); }
+.daily-scale { display: flex; flex-direction: column; justify-content: space-between; }
+.daily-plot svg { flex: 1; min-width: 0; width: 100%; height: calc(var(--space-8) * 3); fill: var(--color-primary); border-block: 1px solid var(--color-border-strong); }
+.daily-details summary { min-height: var(--control-height); padding-block: var(--space-2); cursor: pointer; color: var(--color-primary); }
+.daily-details summary:hover, .daily-details summary:active { color: var(--color-primary-strong); text-decoration: underline; }

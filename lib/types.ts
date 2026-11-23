@@ -27,3 +27,8 @@ export type OrganizerDashboardData = {
   ticketTypes: (TicketType & { registeredCount: number })[];
   registrations: Registration[];
 };
+
+export type DailyRegistrations = {
+  isHistorical: boolean;
+  days: { date: string; count: number }[];
+};
