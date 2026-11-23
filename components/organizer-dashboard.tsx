@@ -1,6 +1,7 @@
 "use client";
 
 // Both dashboard routes require browser-session authentication, forms and refresh actions.
+import { PageHeader } from "./page-header";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -8,11 +9,9 @@ import { organizerDb } from "../lib/supabase/organizer";
 import { getOrganizerDashboard } from "../lib/supabase/dashboard";
 import type { OrganizerDashboardData } from "../lib/types";
 import { formatDate } from "../lib/dates";
-import { DailyRegistrationChart } from "../app/dashboard/[id]/daily-registration-chart";
 
-const button = "rounded-xl bg-emerald-800 px-5 py-3 font-semibold text-white disabled:opacity-50";
-const link = "font-semibold text-emerald-800 underline underline-offset-4";
-const input = "mt-2 w-full rounded-lg border border-stone-300 p-3";
+import { EventDetails } from "./event-details";
+import { DailyRegistrationChart } from "../app/dashboard/[id]/daily-registration-chart";
 
 export default function OrganizerDashboard({ eventId }: { eventId?: string }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -64,24 +63,22 @@ export default function OrganizerDashboard({ eventId }: { eventId?: string }) {
     finally { setBusy(false); }
   }
 
-  return <main className="mx-auto min-h-svh max-w-5xl px-6 py-10">
-    <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-      <div><Link href="/" className="text-sm font-bold tracking-widest text-emerald-800">DOOR LIST</Link>
-        <h1 className="mt-3 text-3xl font-semibold">Panel del organizador</h1></div>
-      {session && <button type="button" className={button} disabled={busy} onClick={() => void logout()}>Cerrar sesión</button>}
-    </header>
-    {error && <p role="alert" className="mb-6 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
-    {!organizerDb ? <p role="alert">El panel no está disponible en este momento.</p>
+  return <main className="door-page">
+    <PageHeader title="Panel del organizador">
+      {session && <button type="button" className="door-button" disabled={busy} onClick={() => void logout()}>Cerrar sesión</button>}
+    </PageHeader>
+    {error && <p role="alert" className="door-alert">{error}</p>}
+    {!organizerDb ? <p role="alert" className="door-alert">El panel no está disponible en este momento.</p>
       : loading ? <p role="status">Comprobando sesión…</p>
-      : !session ? <section className="max-w-md rounded-2xl border border-stone-200 bg-white p-6">
-        <h2 className="text-xl font-semibold">Iniciar sesión</h2>
-        <p className="mt-2 text-stone-600">Accede para consultar tus eventos y asistentes.</p>
-        <form onSubmit={login} className="mt-6 grid gap-5" aria-busy={busy}>
-          <fieldset disabled={busy} className="grid gap-5">
-            <label>Correo electrónico<input className={input} name="email" type="email" autoComplete="email" required /></label>
-            <label>Contraseña<input className={input} name="password" type="password" autoComplete="current-password" required /></label>
+      : !session ? <section className="reading door-card stack">
+        <h2>Iniciar sesión</h2>
+        <p className="support">Accede para consultar tus eventos y asistentes.</p>
+        <form onSubmit={login} className="fields" aria-busy={busy}>
+          <fieldset disabled={busy} className="fields">
+            <label>Correo electrónico<input className="door-field" name="email" type="email" autoComplete="email" required /></label>
+            <label>Contraseña<input className="door-field" name="password" type="password" autoComplete="current-password" required /></label>
           </fieldset>
-          <button className={button} disabled={busy}>{busy ? "Accediendo…" : "Entrar"}</button>
+          <button className="door-button" disabled={busy}>{busy ? "Accediendo…" : "Entrar"}</button>
         </form>
       </section>
       : <DashboardContent key={`${session.user.id}/${eventId ?? ""}`} eventId={eventId} accessToken={session.access_token} />}
@@ -91,6 +88,7 @@ export default function OrganizerDashboard({ eventId }: { eventId?: string }) {
 function DashboardContent({ eventId, accessToken }: { eventId?: string; accessToken: string }) {
   const [data, setData] = useState<OrganizerDashboardData | null>(null);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState(true);
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
@@ -98,71 +96,77 @@ function DashboardContent({ eventId, accessToken }: { eventId?: string; accessTo
     getOrganizerDashboard(eventId).then(result => {
       if (active) setData(result);
     }).catch(() => {
-      if (active) setError("No se pudieron cargar los datos del panel. Inténtalo de nuevo.");
-    });
+      if (active) setError(eventId ? "No pudimos cargar los asistentes. Intenta nuevamente." : "No se pudieron cargar tus eventos.");
+    }).finally(() => { if (active) setPending(false); });
     return () => { active = false; };
   }, [eventId, refresh]);
 
-  const loading = !data && !error;
-  function reload() { setData(null); setError(""); setRefresh(value => value + 1); }
+  const loading = pending && !data;
+  function reload() { setPending(true); setError(""); setRefresh(value => value + 1); }
   const event = data?.events[0];
   const typeNames = new Map(data?.ticketTypes.map(type => [type.id, type.name]));
 
   return <>
-    <nav aria-label="Navegación del organizador" className="mb-8 flex flex-wrap gap-6">
-      {eventId && <Link href="/dashboard" className={link}>Mis eventos</Link>}
-      <Link href="/organizador" className={link}>Gestionar eventos</Link>
-      <button type="button" className={link} disabled={loading} onClick={reload}>Actualizar datos</button>
+    <nav aria-label="Navegación del organizador" className="dashboard-nav actions">
+      {eventId && <Link href="/dashboard">Mis eventos</Link>}
+      <Link href="/organizador">Gestionar eventos</Link>
+      <button type="button" className="button-secondary" disabled={pending} onClick={reload}>{pending && data ? "Actualizando…" : "Actualizar datos"}</button>
     </nav>
-    {loading && <p role="status">Cargando {eventId ? "evento y asistentes" : "tus eventos"}…</p>}
-    {error && <div role="alert" className="rounded-xl bg-red-50 p-5 text-red-900">
-      <p>{error}</p><button type="button" className={`${button} mt-4`} onClick={reload}>Reintentar</button>
-    </div>}
-    {data && (!eventId ? <section>
-      <h2 className="text-2xl font-semibold">Mis eventos</h2>
-      <p className="mt-2 text-stone-600">Selecciona un evento para consultar su ocupación y sus asistentes.</p>
-      {data.events.length === 0 ? <p role="status" className="mt-6">Todavía no tienes eventos. Crea uno desde Gestionar eventos.</p>
-        : <ul className="mt-6 grid gap-4 sm:grid-cols-2">{data.events.map(item => <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-6">
-          <p className="text-sm font-semibold text-emerald-800">{item.status === "publicado" ? "Publicado" : "Borrador"}</p>
-          <h3 className="mt-2 text-xl font-semibold"><Link className={link} href={`/dashboard/${item.id}`}>{item.title}</Link></h3>
-          <p className="mt-3"><time dateTime={item.starts_at}>{formatDate(item.starts_at)}</time> · Hora de Lima</p>
-          <p className="mt-2 text-stone-600">{item.venue}</p>
-        </li>)}</ul>}
-    </section> : !event ? <p role="status">Evento no disponible. Solo puedes consultar eventos de tu propiedad.</p>
-      : <>
-        <section className="mb-8 rounded-2xl bg-emerald-950 p-6 text-white">
-          <p className="text-sm">{event.status === "publicado" ? "Publicado" : "Borrador"}</p>
-          <h2 className="mt-2 text-3xl font-semibold">{event.title}</h2>
-          <p className="mt-3"><time dateTime={event.starts_at}>{formatDate(event.starts_at)}</time> · Hora de Lima</p>
-          <p className="mt-2">{event.venue}</p>
-          <p className="mt-5 text-lg font-semibold">{data.registrations.length} registros{event.capacity === null ? " · Sin aforo general" : ` / ${event.capacity} de aforo general`}</p>
+    <div className="sections" aria-busy={pending}>
+      {error && (!eventId || data) && <div className="door-alert">
+        <p role="alert">{error}</p><button type="button" className="button-secondary" onClick={reload}>Intentar nuevamente</button>
+      </div>}
+      {!eventId && <section className="stack">
+        <h2>Mis eventos</h2>
+        {loading && <div className="door-card stack"><p role="status">Cargando tus eventos…</p><span className="skeleton skeleton-primary" aria-hidden="true" /></div>}
+        {data && (data.events.length ? <ul className="event-grid">{data.events.map(item => <li key={item.id}>
+          <article className="door-card event-card stack">
+            <span className="status-badge">{item.status === "publicado" ? "Publicado" : "Borrador"}</span>
+            <h3>{item.title}</h3>
+            <EventDetails startsAt={item.starts_at} venue={item.venue} />
+            <footer className="card-footer section-heading"><span className="support">{item.capacity === null ? "Sin aforo general" : `Aforo: ${item.capacity}`}</span><Link href={`/dashboard/${item.id}`} aria-label={`Ver detalle de ${item.title}`}>Ver detalle</Link></footer>
+          </article>
+        </li>)}</ul> : <div className="data-state"><h2>Aún no tienes eventos</h2><p>Cuando crees uno, aparecerá aquí.</p><Link href="/organizador">Crear evento</Link></div>)}
+      </section>}
+      {eventId && data && !event && <section className="data-state"><h2>Evento no disponible</h2><p>Solo puedes consultar eventos de tu propiedad.</p></section>}
+      {eventId && event && data && <>
+        <section className="door-card event-card stack">
+          <span className="status-badge">{event.status === "publicado" ? "Publicado" : "Borrador"}</span>
+          <h2>{event.title}</h2>
+          <EventDetails startsAt={event.starts_at} venue={event.venue} />
+          <p>{data.registrations.length} registros{event.capacity === null ? " · Sin aforo general" : ` / ${event.capacity} de aforo general`}</p>
         </section>
         <DailyRegistrationChart eventId={eventId} accessToken={accessToken} refresh={refresh} />
-        <section aria-labelledby="ticket-types-title">
-          <h3 id="ticket-types-title" className="text-2xl font-semibold">Tipos de entrada</h3>
-          {data.ticketTypes.length === 0 ? <p className="mt-4">Este evento todavía no tiene tipos de entrada.</p>
-            : <ul className="mt-5 grid gap-4 sm:grid-cols-2">{data.ticketTypes.map(type => <li key={type.id} className="rounded-2xl border border-stone-200 bg-white p-5">
-              <h4 className="text-lg font-semibold">{type.name}</h4>
-              <p className="mt-2">{type.registeredCount} / {type.capacity} registros</p>
-              <progress className="mt-3 h-3 w-full accent-emerald-800" value={type.registeredCount} max={type.capacity} aria-label={`Ocupación de ${type.name}`} />
-              <p className="mt-2 text-sm text-stone-600">{Math.max(0, type.capacity - type.registeredCount)} plazas disponibles</p>
-            </li>)}</ul>}
+        <section className="stack">
+          <h2>Tipos de entrada</h2>
+          {data.ticketTypes.length ? <ul className="event-grid">{data.ticketTypes.map(type => <li key={type.id} className="door-card stack">
+            <h3>{type.name}</h3><p>{type.registeredCount} / {type.capacity} registros</p>
+            <progress value={type.registeredCount} max={type.capacity} aria-label={`Ocupación de ${type.name}`} />
+            <p className="metadata">{Math.max(0, type.capacity - type.registeredCount)} plazas disponibles</p>
+          </li>)}</ul> : <div className="data-state"><h3>Aún no hay tipos de entrada</h3><p>Puedes añadirlos desde la gestión de eventos.</p></div>}
         </section>
-        <section className="mt-10" aria-labelledby="attendees-title">
-          <h3 id="attendees-title" className="text-2xl font-semibold">Asistentes registrados</h3>
-          {data.registrations.length === 0 ? <p role="status" className="mt-4">Todavía no hay asistentes registrados.</p>
-            : <div className="mt-5 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
-              <table className="w-full text-left text-sm"><caption className="sr-only">Asistentes registrados en {event.title}</caption>
-                <thead className="bg-stone-100"><tr>{["Nombre", "Correo electrónico", "Tipo de entrada", "Fecha de registro · Lima"].map(title => <th key={title} scope="col" className="px-5 py-4">{title}</th>)}</tr></thead>
-                <tbody>{data.registrations.map(registration => <tr key={registration.id} className="border-t border-stone-200">
-                  <td className="px-5 py-4 font-medium">{registration.name}</td>
-                  <td className="break-all px-5 py-4">{registration.email}</td>
-                  <td className="px-5 py-4">{typeNames.get(registration.ticket_type_id)}</td>
-                  <td className="whitespace-nowrap px-5 py-4"><time dateTime={registration.created_at}>{formatDate(registration.created_at)}</time></td>
-                </tr>)}</tbody>
-              </table>
-            </div>}
-        </section>
-      </>)}
+      </>}
+      {eventId && (!data || event) && <section className="stack" aria-labelledby="attendees-title">
+        <div className="section-heading"><h2 id="attendees-title">Asistentes registrados</h2>{data && <span className="support">{data.registrations.length} personas</span>}</div>
+        {loading && <p className="sr-only" role="status">Cargando asistentes…</p>}
+        <div className="table-wrap" tabIndex={0} role="region" aria-labelledby="attendees-title" aria-busy={pending}>
+          <table className="data-table">
+            <caption className="sr-only">Personas registradas y su tipo de entrada</caption>
+            <thead><tr><th scope="col">Asistente</th><th scope="col">Tipo de entrada</th><th scope="col">Registro · Lima</th></tr></thead>
+            <tbody aria-hidden={loading || undefined}>
+              {loading ? Array.from({ length: 5 }, (_, index) => <tr key={index}>
+                {["primary", "compact", "secondary"].map(size => <td key={size}><span className={`skeleton skeleton-${size}`} /></td>)}
+              </tr>) : !data && error ? <tr><td colSpan={3}><div className="table-state">
+                <p role="alert" className="door-alert">{error}</p><button type="button" className="button-secondary" onClick={reload}>Intentar nuevamente</button>
+              </div></td></tr> : data?.registrations.length ? data.registrations.map(registration => <tr key={registration.id}>
+                <td><strong>{registration.name}</strong><span className="metadata">{registration.email}</span></td>
+                <td><span className="status-badge">{typeNames.get(registration.ticket_type_id)}</span></td>
+                <td><time dateTime={registration.created_at}>{formatDate(registration.created_at)}</time></td>
+              </tr>) : <tr><td colSpan={3}><div className="table-state"><strong>Todavía no hay asistentes registrados</strong><p>Las personas aparecerán aquí cuando completen su registro.</p></div></td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>}
+    </div>
   </>;
 }

@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { publicDb } from "../lib/supabase/public";
 
 import type { PublicEventSummary } from "../lib/types";
-import { formatDate, startOfTodayInLima } from "../lib/dates";
+import { EventDetails } from "../components/event-details";
+import { startOfTodayInLima } from "../lib/dates";
 
 export default function EventsLanding() {
   const [events, setEvents] = useState<PublicEventSummary[]>([]);
@@ -34,36 +35,48 @@ export default function EventsLanding() {
 
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
-  return (
-    <main className="mx-auto min-h-svh max-w-2xl px-6 py-12">
-      <Link href="/" className="text-sm font-bold tracking-widest text-emerald-800">DOOR LIST</Link>
-      <section className="mt-8">
-        <h1 className="text-3xl font-semibold">Próximos eventos</h1>
-        <p className="mt-3 text-stone-600">Elige un evento y reserva tu lugar sin iniciar sesión.</p>
-        {loading && <p role="status" className="mt-8">Cargando eventos…</p>}
-        {error && (
-          <div role="alert" className="mt-6">
-            <p>{error}</p>
-            <button type="button" className="mt-4 rounded-xl bg-emerald-800 px-6 py-3 font-semibold text-white disabled:opacity-50" disabled={loading} onClick={() => void refresh()}>Reintentar</button>
+  if (loading) {
+    return <>
+      <p className="sr-only" role="status">Cargando eventos…</p>
+      <div className="event-grid" aria-busy="true" aria-hidden="true">
+        {[0, 1, 2].map(index => (
+          <div key={index} className="door-card event-card stack">
+            <span className="skeleton skeleton-primary" />
+            <span className="skeleton skeleton-secondary" />
+            <div className="event-details"><span className="skeleton skeleton-compact" /><span className="skeleton skeleton-secondary" /></div>
+            <div className="card-footer"><span className="skeleton skeleton-compact" /></div>
           </div>
-        )}
-        {!loading && !error && (events.length === 0 ? (
-          <p role="status" className="mt-6">No hay eventos publicados disponibles.</p>
-        ) : (
-          <ul className="mt-6 grid gap-4">
-            {events.map(event => (
-              <li key={event.id} className="rounded-2xl border border-stone-200 bg-white p-6">
-                <h2 className="text-xl font-semibold">{event.title}</h2>
-                <p className="mt-3 whitespace-pre-wrap text-stone-600">{event.description}</p>
-                <p className="mt-4"><time dateTime={event.starts_at}>{formatDate(event.starts_at, "landing")}</time> · Hora de Lima</p>
-                <p className="mb-4">{event.venue}</p>
-                <Link className="font-semibold text-emerald-800 underline" href={`/eventos/${event.id}`}>Ver evento y registrarme</Link>
-              </li>
-            ))}
-          </ul>
         ))}
-      </section>
-      <Link href="/organizador" className="mt-10 inline-block text-sm text-emerald-800 underline">Acceso para organizadores</Link>
-    </main>
-  );
+      </div>
+    </>;
+  }
+
+  if (error) {
+    return <div className="data-state stack">
+      <p className="door-alert" role="alert">{error}</p>
+      <button type="button" className="button-secondary" onClick={() => void refresh()}>Intentar nuevamente</button>
+    </div>;
+  }
+
+  if (events.length === 0) {
+    return <div className="data-state">
+      <h2>No hay eventos disponibles</h2>
+      <p>Vuelve pronto para conocer nuevas fechas.</p>
+    </div>;
+  }
+
+  return <ul className="event-grid">
+    {events.map(event => (
+      <li key={event.id}>
+        <article className="door-card event-card stack">
+          <h3>{event.title}</h3>
+          {event.description && <p className="support whitespace-pre-wrap">{event.description}</p>}
+          <EventDetails startsAt={event.starts_at} venue={event.venue} dateFormat="landing" />
+          <footer className="card-footer">
+            <Link className="door-button" href={`/eventos/${event.id}`}>Ver evento y registrarme<span className="sr-only"> en {event.title}</span></Link>
+          </footer>
+        </article>
+      </li>
+    ))}
+  </ul>;
 }

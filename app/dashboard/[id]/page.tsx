@@ -1,9 +1,10 @@
+import { PageHeader } from "../../../components/page-header";
 import { Suspense } from "react";
 import Link from "next/link";
 import OrganizerDashboard from "../../../components/organizer-dashboard";
 
 export default function DashboardEventPage({ params }: { params: Promise<{ id: string }> }) {
-  return <Suspense fallback={<p role="status" className="p-10">Cargando evento…</p>}>
+  return <Suspense fallback={<main className="door-page"><PageHeader title="Cargando evento…" /><div className="door-card reading stack" role="status"><span className="sr-only">Cargando evento…</span><span className="skeleton skeleton-primary" aria-hidden="true" /></div></main>}>
     <DashboardEventContent params={params} />
   </Suspense>;
 }
@@ -11,8 +12,7 @@ export default function DashboardEventPage({ params }: { params: Promise<{ id: s
 async function DashboardEventContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    return <main className="mx-auto max-w-5xl p-10"><h1 className="text-2xl font-semibold">Evento no disponible</h1>
-      <Link href="/dashboard" className="mt-4 inline-block text-emerald-800 underline">Volver a mis eventos</Link></main>;
+    return <main className="door-page"><PageHeader title="Evento no disponible" /><div className="data-state"><p>Este evento no está disponible.</p><Link href="/dashboard">Volver a mis eventos</Link></div></main>;
   }
   return <OrganizerDashboard key={id} eventId={id} />;
 }
